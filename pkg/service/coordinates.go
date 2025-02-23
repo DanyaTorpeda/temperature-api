@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
 	weatherapi "third-party-api"
 	"time"
 
@@ -11,9 +12,11 @@ import (
 )
 
 const (
-	latitude       = "Latitude"
-	longitude      = "Longitude"
-	expirationTime = time.Hour * 24 * 30
+	cityPrefix          = "city"
+	coordSufix          = "coord"
+	latitude            = "Latitude"
+	longitude           = "Longitude"
+	coordExpirationTime = time.Hour * 24 * 30
 )
 
 type CoordinatesService struct {
@@ -26,14 +29,14 @@ func NewCoordinatesService(client *redis.Client) *CoordinatesService {
 
 func (s *CoordinatesService) GetCityCoordinates(ctx context.Context, cityName string) (*weatherapi.GeocodingResponse, error) {
 	logrus.Print("inside GetCityCoordinates")
-	lat, err := s.red.HGet(ctx, cityName, latitude).Float64()
+	lat, err := s.red.HGet(ctx, fmt.Sprintf("%s:%s:%s", cityPrefix, cityName, coordSufix), latitude).Float64()
 	if errors.Is(err, redis.Nil) {
 		return nil, redis.Nil
 	}
 	if err != nil {
 		return nil, err
 	}
-	lon, err := s.red.HGet(ctx, cityName, longitude).Float64()
+	lon, err := s.red.HGet(ctx, fmt.Sprintf("%s:%s:%s", cityPrefix, cityName, coordSufix), longitude).Float64()
 	if errors.Is(err, redis.Nil) {
 		return nil, redis.Nil
 	}
@@ -53,14 +56,14 @@ func (s *CoordinatesService) GetCityCoordinates(ctx context.Context, cityName st
 
 func (s *CoordinatesService) AddCityCoordinates(ctx context.Context, cityName string, geoResp weatherapi.GeocodingResponse) (*weatherapi.GeocodingResponse, error) {
 	logrus.Print("inside AddCityCoordinates")
-	_, err := s.red.HSet(ctx, cityName,
+	_, err := s.red.HSet(ctx, fmt.Sprintf("%s:%s:%s", cityPrefix, cityName, coordSufix),
 		"Latitude", geoResp.Results[0].Latitude,
 		"Longitude", geoResp.Results[0].Longitude,
 	).Result()
 	if err != nil {
 		return nil, err
 	}
-	if err := s.red.Expire(ctx, cityName, expirationTime).Err(); err != nil {
+	if err := s.red.Expire(ctx, fmt.Sprintf("%s:%s:%s", cityPrefix, cityName, coordSufix), coordExpirationTime).Err(); err != nil {
 		return nil, err
 	}
 

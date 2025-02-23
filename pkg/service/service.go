@@ -13,7 +13,8 @@ type CityCoordinates interface {
 }
 
 type Weather interface {
-	GetTemperature(context.Context, *weatherapi.GeocodingResponse)
+	GetTemperature(context.Context, string) (*weatherapi.WeatherResponse, error)
+	AddTemperature(ctx context.Context, cityName string, resp *weatherapi.WeatherResponse) (*weatherapi.WeatherResponse, error)
 }
 
 type Service struct {
